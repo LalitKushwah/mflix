@@ -198,6 +198,9 @@ export default class MoviesDAO {
     const queryPipeline = [
       matchStage,
       sortStage,
+      skipStage,
+      limitStage,
+      facetStage,
       // TODO Ticket: Faceted Search
       // Add the stages to queryPipeline in the correct order.
     ]
@@ -245,6 +248,7 @@ export default class MoviesDAO {
     try {
       cursor = await movies
         .find(query)
+        .skip(page * moviesPerPage)
         .project(project)
         .sort(sort)
     } catch (e) {
@@ -271,9 +275,9 @@ export default class MoviesDAO {
 
       return { moviesList, totalNumMovies }
     } catch (e) {
-      console.error(
-        `Unable to convert cursor to array or problem counting documents, ${e}`,
-      )
+      if (String(e).startsWith("MongoError: E11000 duplicate key error")) {
+        return null
+      }
       return { moviesList: [], totalNumMovies: 0 }
     }
   }
@@ -303,9 +307,37 @@ export default class MoviesDAO {
             _id: ObjectId(id),
           },
         },
+        {
+          $lookup: {
+            from: "comments",
+            let: { id: "$_id" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $eq: ["$movie_id", "$$id"],
+                  },
+                },
+              },
+            ],
+            as: "comments",
+          },
+        },
+        {
+          $sort: {
+            date: -1,
+          },
+        },
       ]
       return await movies.aggregate(pipeline).next()
     } catch (e) {
+      if (
+        String(e).startsWith(
+          "Error: Argument passed in must be a single String of 12 bytes or a string of 24 hex characters",
+        )
+      ) {
+        return null
+      }
       /**
       Ticket: Error Handling
 

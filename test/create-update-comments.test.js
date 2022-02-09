@@ -48,12 +48,12 @@ describe("Create/Update Comments", () => {
       comment.text,
       date,
     )
-
+    console.log("==== posted comment ====", postCommentResult)
     expect(postCommentResult.insertedCount).toBe(1)
     expect(postCommentResult.insertedId).not.toBe(null)
 
     const movieComments = (await MoviesDAO.getMovieByID(movieId)).comments
-
+    console.log("=== comments ===", movieComments)
     expect(movieComments[0]._id).toEqual(postCommentResult.insertedId)
     expect(movieComments[0].text).toEqual(comment.text)
 
